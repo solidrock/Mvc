@@ -11,28 +11,63 @@ namespace Microsoft.AspNetCore.Mvc.DataAnnotations.Internal
     /// <summary>
     /// Sets up default options for <see cref="MvcOptions"/>.
     /// </summary>
-    public class MvcDataAnnotationsMvcOptionsSetup : ConfigureOptions<MvcOptions>
+    public class MvcDataAnnotationsMvcOptionsSetup : IConfigureOptions<MvcOptions>
     {
-        public MvcDataAnnotationsMvcOptionsSetup(IServiceProvider serviceProvider)
-            : base(options => ConfigureMvc(options, serviceProvider))
+        private IStringLocalizerFactory _stringLocalizerFactory;
+        private IValidationAttributeAdapterProvider _validationAttributeAdapterProvider;
+        private IOptions<MvcDataAnnotationsLocalizationOptions> _dataAnnotationLocalizationOptions;
+
+        public MvcDataAnnotationsMvcOptionsSetup(
+            IValidationAttributeAdapterProvider validationAttributeAdapterProvider,
+            IOptions<MvcDataAnnotationsLocalizationOptions> dataAnnotationLocalizationOptions)
         {
+            if (validationAttributeAdapterProvider == null)
+            {
+                throw new ArgumentNullException(nameof(validationAttributeAdapterProvider));
+            }
+
+            if (dataAnnotationLocalizationOptions == null)
+            {
+                throw new ArgumentNullException(nameof(dataAnnotationLocalizationOptions));
+            }
+
+            _validationAttributeAdapterProvider = validationAttributeAdapterProvider;
+            _dataAnnotationLocalizationOptions = dataAnnotationLocalizationOptions;
         }
 
-        public static void ConfigureMvc(MvcOptions options, IServiceProvider serviceProvider)
+        public MvcDataAnnotationsMvcOptionsSetup(
+            IValidationAttributeAdapterProvider validationAttributeAdapterProvider,
+            IOptions<MvcDataAnnotationsLocalizationOptions> dataAnnotationLocalizationOptions,
+            IStringLocalizerFactory stringLocalizerFactory)
         {
-            var dataAnnotationLocalizationOptions =
-                serviceProvider.GetRequiredService<IOptions<MvcDataAnnotationsLocalizationOptions>>();
+            if (validationAttributeAdapterProvider == null)
+            {
+                throw new ArgumentNullException(nameof(validationAttributeAdapterProvider));
+            }
 
-            // This service will be registered only if AddDataAnnotationsLocalization() is added to service collection.
-            var stringLocalizerFactory = serviceProvider.GetService<IStringLocalizerFactory>();
-            var validationAttributeAdapterProvider = serviceProvider.GetRequiredService<IValidationAttributeAdapterProvider>();
+            if (dataAnnotationLocalizationOptions == null)
+            {
+                throw new ArgumentNullException(nameof(dataAnnotationLocalizationOptions));
+            }
 
-            options.ModelMetadataDetailsProviders.Add(new DataAnnotationsMetadataProvider(stringLocalizerFactory));
+            _validationAttributeAdapterProvider = validationAttributeAdapterProvider;
+            _dataAnnotationLocalizationOptions = dataAnnotationLocalizationOptions;
+            _stringLocalizerFactory = stringLocalizerFactory;
+        }
+
+        public void Configure(MvcOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            options.ModelMetadataDetailsProviders.Add(new DataAnnotationsMetadataProvider(_stringLocalizerFactory));
 
             options.ModelValidatorProviders.Add(new DataAnnotationsModelValidatorProvider(
-                validationAttributeAdapterProvider,
-                dataAnnotationLocalizationOptions,
-                stringLocalizerFactory));
+                _validationAttributeAdapterProvider,
+                _dataAnnotationLocalizationOptions,
+                _stringLocalizerFactory));
         }
     }
 }
