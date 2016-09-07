@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc.ViewFeatures.Internal;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.ViewFeatures
@@ -74,7 +75,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         public void EnsureObjectCanBeSerialized_ThrowsException_OnInvalidType(object value, Type type)
         {
             // Arrange
-            var testProvider = new SessionStateTempDataProvider();
+            var testProvider = new TempDataProviderStore();
 
             // Act & Assert
             var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -105,7 +106,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         public void EnsureObjectCanBeSerialized_ThrowsException_OnInvalidDictionaryType(object value, Type type)
         {
             // Arrange
-            var testProvider = new SessionStateTempDataProvider();
+            var testProvider = new TempDataProviderStore();
 
             // Act & Assert
             var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -143,7 +144,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         public void EnsureObjectCanBeSerialized_DoesNotThrow_OnValidType(object value)
         {
             // Arrange
-            var testProvider = new SessionStateTempDataProvider();
+            var testProvider = new TempDataProviderStore();
 
             // Act & Assert (Does not throw)
             testProvider.EnsureObjectCanBeSerialized(value);

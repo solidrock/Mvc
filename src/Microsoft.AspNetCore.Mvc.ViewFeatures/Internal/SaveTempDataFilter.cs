@@ -29,7 +29,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         /// <inheritdoc />
         public void OnResourceExecuted(ResourceExecutedContext context)
         {
-            _factory.GetTempData(context.HttpContext).Save();
         }
 
         /// <inheritdoc />
@@ -44,6 +43,8 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
             {
                 _factory.GetTempData(context.HttpContext).Keep();
             }
+
+            _factory.GetTempData(context.HttpContext).Save();
         }
     }
 }
