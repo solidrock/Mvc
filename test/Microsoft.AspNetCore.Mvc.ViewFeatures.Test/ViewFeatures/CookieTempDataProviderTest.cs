@@ -28,6 +28,34 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         }
 
         [Fact]
+        public void LoadTempData_Base64DecodesAnd_UnprotectsData_FromCookie()
+        {
+            // Arrange
+            var expectedValues = new Dictionary<string, object>();
+            expectedValues.Add("int", 10);
+            var tempDataProviderStore = new TempDataProviderStore();
+            var serializedData = tempDataProviderStore.SerializeTempData(expectedValues);
+            var base64EncodedData = Convert.ToBase64String(serializedData);
+            var dataProtector = new PassThroughDataProtector();
+            var tempDataProvider = new CookieTempDataProvider(new PassThroughDataProtectionProvider(dataProtector));
+            var requestCookies = new RequestCookieCollection(new Dictionary<string, string>()
+            {
+                { CookieTempDataProvider.CookieName, base64EncodedData }
+            });
+            var httpContext = new Mock<HttpContext>();
+            httpContext
+               .Setup(hc => hc.Request.Cookies)
+               .Returns(requestCookies);
+
+            // Act
+            var actualValues = tempDataProvider.LoadTempData(httpContext.Object);
+
+            // Assert
+            Assert.Equal(serializedData, dataProtector.DataToUnprotect);
+            Assert.Equal(expectedValues, actualValues);
+        }
+
+        [Fact]
         public void SaveTempData_ProtectsAnd_Base64EncodesDataAnd_SetsCookie()
         {
             // Arrange
@@ -88,34 +116,6 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             Assert.Equal(pathBase, responseCookies.Options.Path);
             Assert.True(responseCookies.Options.Secure);
             Assert.True(responseCookies.Options.HttpOnly);
-        }
-
-        [Fact]
-        public void LoadTempData_Base64DecodesAnd_UnprotectsData_FromCookie()
-        {
-            // Arrange
-            var expectedValues = new Dictionary<string, object>();
-            expectedValues.Add("int", 10);
-            var tempDataProviderStore = new TempDataProviderStore();
-            var serializedData = tempDataProviderStore.SerializeTempData(expectedValues);
-            var base64EncodedData = Convert.ToBase64String(serializedData);
-            var dataProtector = new PassThroughDataProtector();
-            var tempDataProvider = new CookieTempDataProvider(new PassThroughDataProtectionProvider(dataProtector));
-            var requestCookies = new RequestCookieCollection(new Dictionary<string, string>()
-            {
-                { CookieTempDataProvider.CookieName, base64EncodedData }
-            });
-            var httpContext = new Mock<HttpContext>();
-            httpContext
-               .Setup(hc => hc.Request.Cookies)
-               .Returns(requestCookies);
-
-            // Act
-            var actualValues = tempDataProvider.LoadTempData(httpContext.Object);
-
-            // Assert
-            Assert.Equal(serializedData, dataProtector.DataToUnprotect);
-            Assert.Equal(expectedValues, actualValues);
         }
 
         private class MockResponseCookieCollection : IResponseCookies
