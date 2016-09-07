@@ -80,7 +80,9 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
             // Assert
             Assert.Equal(1, responseCookies.Count);
-            Assert.Equal(base64EncodedData, responseCookies.Value);
+            var cookieInfo = responseCookies[CookieTempDataProvider.CookieName];
+            Assert.NotNull(cookieInfo);
+            Assert.Equal(base64EncodedData, cookieInfo.Value);
             Assert.Equal(serializedData, dataProtector.PlainTextToProtect);
         }
 
@@ -111,41 +113,95 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
             // Assert
             Assert.Equal(1, responseCookies.Count);
-            Assert.Equal(base64EncodedData, responseCookies.Value);
+            var cookieInfo = responseCookies[CookieTempDataProvider.CookieName];
+            Assert.NotNull(cookieInfo);
+            Assert.Equal(base64EncodedData, cookieInfo.Value);
             Assert.Equal(serializedData, dataProtector.PlainTextToProtect);
-            Assert.Equal(pathBase, responseCookies.Options.Path);
-            Assert.True(responseCookies.Options.Secure);
-            Assert.True(responseCookies.Options.HttpOnly);
+            Assert.Equal(pathBase, cookieInfo.Options.Path);
+            Assert.True(cookieInfo.Options.Secure);
+            Assert.True(cookieInfo.Options.HttpOnly);
+        }
+
+        [Fact]
+        public void SaveTempData_RemovesCookie_WhenNoDataToSave()
+        {
+            // Arrange
+            var values = new Dictionary<string, object>();
+            values.Add("int", 10);
+            var tempDataProviderStore = new TempDataProviderStore();
+            var serializedData = tempDataProviderStore.SerializeTempData(values);
+            var base64EncodedData = Convert.ToBase64String(serializedData);
+            var dataProtector = new PassThroughDataProtector();
+            var tempDataProvider = new CookieTempDataProvider(new PassThroughDataProtectionProvider(dataProtector));
+            var requestCookies = new RequestCookieCollection(new Dictionary<string, string>()
+            {
+                { CookieTempDataProvider.CookieName, base64EncodedData }
+            });
+            var responseCookies = new MockResponseCookieCollection();
+            var httpContext = new Mock<HttpContext>();
+            httpContext
+                .SetupGet(hc => hc.Request.PathBase)
+                .Returns("/");
+            httpContext
+                .Setup(hc => hc.Request.Cookies)
+                .Returns(requestCookies);
+            httpContext
+                .Setup(hc => hc.Response.Cookies)
+                .Returns(responseCookies);
+
+            // Act
+            tempDataProvider.SaveTempData(httpContext.Object, new Dictionary<string, object>());
+
+            // Assert
+            Assert.Equal(0, responseCookies.Count);
         }
 
         private class MockResponseCookieCollection : IResponseCookies
         {
-            public string Key { get; set; }
-            public string Value { get; set; }
-            public CookieOptions Options { get; set; }
-            public int Count { get; set; }
+            private Dictionary<string, CookieInfo> _cookies = new Dictionary<string, CookieInfo>(StringComparer.OrdinalIgnoreCase);
+
+            public int Count
+            {
+                get
+                {
+                    return _cookies.Count;
+                }
+            }
+
+            public CookieInfo this[string key]
+            {
+                get
+                {
+                    return _cookies[key];
+                }
+            }
 
             public void Append(string key, string value, CookieOptions options)
             {
-                this.Key = key;
-                this.Value = value;
-                this.Options = options;
-                this.Count++;
+                _cookies[key] = new CookieInfo()
+                {
+                    Options = options,
+                    Value = value
+                };
             }
 
             public void Append(string key, string value)
             {
-                throw new NotImplementedException();
+                _cookies[key] = new CookieInfo()
+                {
+                    Options = new CookieOptions(),
+                    Value = value
+                };
             }
 
             public void Delete(string key, CookieOptions options)
             {
-                throw new NotImplementedException();
+                _cookies.Remove(key);
             }
 
             public void Delete(string key)
             {
-                throw new NotImplementedException();
+                _cookies.Remove(key);
             }
         }
 
@@ -187,6 +243,13 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 DataToUnprotect = protectedData;
                 return DataToUnprotect;
             }
+        }
+
+        private class CookieInfo
+        {
+            public string Value { get; set; }
+
+            public CookieOptions Options { get; set; }
         }
     }
 }
