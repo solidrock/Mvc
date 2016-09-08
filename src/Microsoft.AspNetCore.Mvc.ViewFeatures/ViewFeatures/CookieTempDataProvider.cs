@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Internal;
 using Microsoft.AspNetCore.Mvc.ViewFeatures.Internal;
 
 namespace Microsoft.AspNetCore.Mvc.ViewFeatures
@@ -34,15 +35,16 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 throw new ArgumentNullException(nameof(context));
             }
 
-            string value;
-            if (context.Request.Cookies.TryGetValue(CookieName, out value))
+            IDictionary<string, object> tempData = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            string base64EncodedValue;
+            if (context.Request.Cookies.TryGetValue(CookieName, out base64EncodedValue))
             {
-                var base64EncodedValue = Convert.FromBase64String(value);
-                var unprotectedData = _dataProtector.Unprotect(base64EncodedValue);
-                return _tempDataProviderStore.DeserializeTempData(unprotectedData);
+                var protectedData = Convert.FromBase64String(base64EncodedValue);
+                var unprotectedData = _dataProtector.Unprotect(protectedData);
+                tempData = _tempDataProviderStore.DeserializeTempData(unprotectedData);
             }
 
-            return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            return tempData;
         }
 
         public void SaveTempData(HttpContext context, IDictionary<string, object> values)
@@ -52,26 +54,25 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 throw new ArgumentNullException(nameof(context));
             }
 
+            var cookieOptions = new CookieOptions()
+            {
+                //Expires TODO: THE TIME REQUIRED
+                Path = context.Request.PathBase,
+                HttpOnly = true,
+                Secure = true
+            };
+
             var hasValues = (values != null && values.Count > 0);
             if (hasValues)
             {
                 var bytes = _tempDataProviderStore.SerializeTempData(values);
                 bytes = _dataProtector.Protect(bytes);
 
-                context.Response.Cookies.Append(
-                    CookieName,
-                    Convert.ToBase64String(bytes),
-                    new CookieOptions()
-                    {
-                        //Expires TODO: THE TIME REQUIRED
-                        Path = context.Request.PathBase,
-                        HttpOnly = true,
-                        Secure = true
-                    });
+                context.Response.Cookies.Append(CookieName, Convert.ToBase64String(bytes), cookieOptions);
             }
             else
             {
-                context.Response.Cookies.Delete(CookieName);
+                context.Response.Cookies.Delete(CookieName, cookieOptions);
             }
         }
     }

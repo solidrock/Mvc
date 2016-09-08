@@ -34,17 +34,17 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures.Internal
         /// <inheritdoc />
         public void OnResultExecuting(ResultExecutingContext context)
         {
-        }
-
-        /// <inheritdoc />
-        public void OnResultExecuted(ResultExecutedContext context)
-        {
             if (context.Result is IKeepTempDataResult)
             {
                 _factory.GetTempData(context.HttpContext).Keep();
             }
 
             _factory.GetTempData(context.HttpContext).Save();
+        }
+
+        /// <inheritdoc />
+        public void OnResultExecuted(ResultExecutedContext context)
+        {
         }
     }
 }
